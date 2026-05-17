@@ -1,0 +1,70 @@
+name: Feature request
+description: Propose a concrete, in-scope improvement.
+title: "[feat] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, please read the **Scope** section
+        of [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md). Requests that
+        require a backend, analytics, machine translation, or origins
+        other than `datawarehouse.dbd.go.th` are out of scope and will be
+        closed.
+
+        Not sure yet? Open a
+        [Discussion](https://github.com/vLannaAi/namue-dbd/discussions)
+        first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the user-facing or developer-facing problem, not the solution.
+      placeholder: |
+        "When I look up a director by tax ID, I have to copy the juristic
+        ID from another tab first — there's no way to paste a name."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should the extension do? Keep it as small as possible.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface area
+      options:
+        - Popup UI
+        - RPC API (externally_connectable)
+        - DBD client / parsing
+        - Build / tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds exist today? Why are they not enough?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This change does NOT introduce a backend, telemetry, analytics, or any third-party endpoint.
+          required: true
+        - label: This change does NOT add machine translation, romanization, or AI inference on names.
+          required: true
+        - label: This change does NOT add origins outside `datawarehouse.dbd.go.th` at runtime.
+          required: true

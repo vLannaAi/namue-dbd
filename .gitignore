@@ -1,4 +1,67 @@
+# Dependencies and build outputs
 node_modules/
 dist/
+*.zip
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS junk
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor / IDE state
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# AI tooling notes and config — keep local, not in public repo
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+AGENTS.md
+.claude/
+.cursor/
+.aider*
+.continue/
+.windsurf/
+
+# Environment and secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+credentials.json
+.aws/
+
+# Captured DBD traffic / fixtures
+# (may contain incap_ses_* cookies or live JWTs)
+*.har
+fixtures/dbd-*
+fixtures/*-real.json
+captures/
+
+# Screenshots intended for the CWS listing, not docs
+screenshots/
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+
+# Local notes and scratch files
+TODO.local.md
+NOTES.local.md
+scratch/

@@ -1,0 +1,98 @@
+name: Bug report
+description: Something in the extension is broken or behaves unexpectedly.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Before submitting, please:
+
+        - Confirm the issue reproduces in a fresh Chrome profile (rules
+          out conflicts with other extensions).
+        - **Redact any personal information** from screenshots or logs.
+          DBD data is public, but please keep queries minimal — only
+          what is strictly needed to reproduce.
+        - If this is a **security issue**, do not file it here. See
+          [SECURITY.md](../blob/main/SECURITY.md) for the private channel.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what did you expect to happen instead?
+      placeholder: |
+        1. Opened the popup and searched for "ลานนา".
+        2. Expected a list of matches.
+        3. Got error NAMUE_DECRYPTION instead.
+    validations:
+      required: true
+
+  - type: input
+    id: error-code
+    attributes:
+      label: Error code (if any)
+      description: The `NAMUE_*` code shown in the popup or returned via RPC.
+      placeholder: NAMUE_DECRYPTION
+    validations:
+      required: false
+
+  - type: input
+    id: ext-version
+    attributes:
+      label: Extension version
+      description: From `chrome://extensions` → Details.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome version
+      description: From `chrome://version`.
+      placeholder: "Chrome 138.0.7204.94"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.2, Windows 11, Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did the bug occur?
+      options:
+        - Popup UI
+        - External RPC (chrome.runtime.sendMessage from another origin)
+        - Service worker / session bootstrap
+        - Build / install
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Service-worker or popup console output
+      description: |
+        Open `chrome://extensions` → **service worker** link or the
+        popup's DevTools. Paste the relevant lines — redact tokens.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirms
+    attributes:
+      label: Confirmations
+      options:
+        - label: I reproduced this in a fresh Chrome profile (or am confident it isn't another extension interfering).
+          required: true
+        - label: I redacted personal information and any DBD session tokens (`incap_ses_*`, JWT).
+          required: true

@@ -166,6 +166,21 @@ the user has opted into via `externally_connectable`.
 
 Full privacy notice: <https://www.namue.com/privacy.html>.
 
+## Contributing
+
+Contributions are welcome — bug reports, ideas, and PRs alike. Before
+writing code, please read [CONTRIBUTING.md](./CONTRIBUTING.md) for the
+scope rules (no backend, no telemetry, no AI translation), and skim the
+[Code of Conduct](./CODE_OF_CONDUCT.md).
+
+- **Discussions**: <https://github.com/vLannaAi/namue-dbd/discussions> —
+  for ideas, questions, and scope conversations before opening an issue.
+- **Issues**: <https://github.com/vLannaAi/namue-dbd/issues> — for
+  reproducible bugs and concrete feature requests.
+- **Security**: report privately via
+  [SECURITY.md](./SECURITY.md). Do not file a public issue with a
+  working exploit or a live session token.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE). Operated by [Lanna AI](https://lanna.ai).
