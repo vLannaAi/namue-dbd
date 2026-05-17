@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>namue · RPC demo</title>
+  <style>
+    :root {
+      --brand-accent: #AF0D4E;
+      --brand-fg: #3A1424;
+      --brand-muted: #8A6770;
+      --brand-line: #EAD8DC;
+      --brand-bg: #FAF7F2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+      color: var(--brand-fg);
+      background: var(--brand-bg);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    h1 { font-size: 18px; color: var(--brand-accent); margin: 0 0 4px; }
+    h2 { font-size: 13px; color: var(--brand-fg); margin: 22px 0 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .sub { color: var(--brand-muted); font-size: 11px; margin-bottom: 18px; }
+    .row { display: flex; gap: 6px; margin: 6px 0; align-items: stretch; }
+    label { font-size: 11px; color: var(--brand-muted); align-self: center; min-width: 90px; }
+    input, button, select {
+      font-family: inherit; font-size: 13px;
+      padding: 7px 10px;
+      border: 1px solid var(--brand-line);
+      border-radius: 4px;
+      background: white;
+      color: var(--brand-fg);
+    }
+    input { flex: 1; }
+    button {
+      background: var(--brand-accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover { background: #8C0A3E; }
+    button:disabled { background: #C9B6BA; cursor: default; }
+    pre {
+      background: white;
+      border: 1px solid var(--brand-line);
+      border-radius: 4px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      font-size: 11px;
+      line-height: 1.4;
+      max-height: 380px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .status {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .status.ok { background: #F8E4EB; color: #7A0837; }
+    .status.warn { background: #FCEFD3; color: #8B5A00; }
+    .status.err { background: #FBE5E1; color: #93251A; }
+  </style>
+</head>
+<body>
+  <h1>namue · RPC demo</h1>
+  <div class="sub">
+    Calls the namue Chrome extension via <code>chrome.runtime.sendMessage</code> from <code>http://localhost</code>.
+    This page is an example consumer — your app would use the same API.
+  </div>
+
+  <div class="row">
+    <label for="ext-id">extension id</label>
+    <input id="ext-id" type="text" value="lkpfengjbonbcdbiajkpccbdoljnpbph">
+  </div>
+  <div id="status" class="status warn">checking…</div>
+
+  <h2>1. Capabilities</h2>
+  <div class="row">
+    <button id="caps-btn">probe</button>
+  </div>
+  <pre id="caps-out">// click "probe" — extension's RPC surface description</pre>
+
+  <h2>2. Search</h2>
+  <div class="row">
+    <input id="q" type="text" placeholder="company name or 13-digit tax ID" value="lanna ai">
+    <button id="search-btn">search</button>
+  </div>
+  <pre id="search-out">// type a name, click "search" — full DwSearchPage as JSON</pre>
+
+  <h2>3. Detail (lite)</h2>
+  <div class="row">
+    <button id="detail-btn" disabled>fetch detail</button>
+  </div>
+  <pre id="detail-out">// run a search first, then "fetch detail" — { profile, objectives, committees }</pre>
+
+  <h2>4. Full record — everything DBD has</h2>
+  <div class="sub">
+    profile · objectives · committees · committee-signs · partners · name-history ·
+    capital-history · nations · mergers · liquidators · balance-sheets · financial-submissions.
+    All fetched in parallel; failed slots come back as <code>{ error }</code>.
+  </div>
+  <div class="row">
+    <button id="full-btn" disabled>fetch full record</button>
+  </div>
+  <pre id="full-out">// run a search first, then "fetch full record"</pre>
+
+  <h2>5. Geocode the address (consumer-side enrichment)</h2>
+  <div class="sub">
+    Example of how a consumer application would enrich the raw address into a
+    structured geocoded result. Uses the Google Maps Geocoding API with the
+    consumer's own key — the extension never sees the key.
+  </div>
+  <div class="row">
+    <input id="gmaps-key" type="text" placeholder="Google Maps Geocoding API key (your own; not stored)">
+    <button id="geocode-btn" disabled>geocode</button>
+  </div>
+  <pre id="geocode-out">// fetch a detail first, then paste a Maps key and click "geocode"</pre>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const extId = () => $("#ext-id").value.trim();
+
+    function send(req) {
+      return new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage(extId(), req, (response) => {
+            if (chrome.runtime.lastError) {
+              resolve({ ok: false, error: { code: "NAMUE_DISCONNECTED", message: chrome.runtime.lastError.message } });
+              return;
+            }
+            resolve(response);
+          });
+        } catch (e) {
+          resolve({ ok: false, error: { code: "NAMUE_NO_CHROME", message: String(e) } });
+        }
+      });
+    }
+
+    function setStatus(text, cls) {
+      const el = $("#status");
+      el.textContent = text;
+      el.className = `status ${cls}`;
+    }
+
+    let firstResult = null;
+    let lastDetailProfile = null;
+
+    async function probeCaps() {
+      $("#caps-out").textContent = "// requesting…";
+      const r = await send({ type: "capabilities" });
+      $("#caps-out").textContent = JSON.stringify(r, null, 2);
+      if (r.ok) setStatus("connected via externally_connectable", "ok");
+      else setStatus(`not reachable — ${r.error.message}`, "err");
+    }
+
+    async function search() {
+      const q = $("#q").value.trim();
+      if (!q) return;
+      $("#search-out").textContent = "// searching…";
+      const r = await send({ type: "translate", scope: "company", query: q });
+      $("#search-out").textContent = JSON.stringify(r, null, 2);
+      if (r.ok && r.data.contents.length > 0) {
+        firstResult = r.data.contents[0];
+        $("#detail-btn").disabled = false;
+        $("#full-btn").disabled = false;
+      } else {
+        firstResult = null;
+        $("#detail-btn").disabled = true;
+        $("#full-btn").disabled = true;
+      }
+    }
+
+    async function fetchDetail() {
+      if (!firstResult) return;
+      $("#detail-out").textContent = "// fetching…";
+      const r = await send({
+        type: "company.detail",
+        typeCode: firstResult.typeCode,
+        juristicId: firstResult.juristicId,
+      });
+      $("#detail-out").textContent = JSON.stringify(r, null, 2);
+      if (r.ok) {
+        lastDetailProfile = r.data.profile;
+        $("#geocode-btn").disabled = false;
+      }
+    }
+
+    async function fetchFull() {
+      if (!firstResult) return;
+      $("#full-out").textContent = "// fetching everything in parallel — this can take a few seconds…";
+      const t0 = performance.now();
+      const r = await send({
+        type: "company.full",
+        typeCode: firstResult.typeCode,
+        juristicId: firstResult.juristicId,
+      });
+      const ms = Math.round(performance.now() - t0);
+      $("#full-out").textContent = `// ${ms}ms\n` + JSON.stringify(r, null, 2);
+      if (r.ok && r.data.profile) {
+        lastDetailProfile = r.data.profile;
+        $("#geocode-btn").disabled = false;
+      }
+    }
+
+    // Build a Thai+English address line from the structured fields the
+    // extension returned. The consumer chooses which language to geocode.
+    function addressString(p, lang) {
+      const wantTh = lang === "th";
+      const street = wantTh ? p.addressTh : (p.addressEn ?? p.addressTh);
+      const subd = p.subdistrict ? (wantTh ? p.subdistrict.nameTh : p.subdistrict.nameEn) : "";
+      const dist = p.district ? (wantTh ? p.district.nameTh : p.district.nameEn) : "";
+      const prov = p.province ? (wantTh ? p.province.nameTh : p.province.nameEn) : "";
+      return [street, subd, dist, prov, p.zipCode].filter(Boolean).join(", ");
+    }
+
+    async function geocode() {
+      if (!lastDetailProfile) return;
+      const key = $("#gmaps-key").value.trim();
+      if (!key) {
+        $("#geocode-out").textContent = "// paste your Google Maps Geocoding API key first.\n" +
+          "// (The extension never sees it — this request goes directly from this page to Google.)";
+        return;
+      }
+      // Try Thai address first (more specific in Thailand), fall back to English.
+      const addrTh = addressString(lastDetailProfile, "th");
+      const addrEn = addressString(lastDetailProfile, "en");
+      $("#geocode-out").textContent = "// geocoding…";
+      try {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addrTh)}&region=th&language=th&key=${encodeURIComponent(key)}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        // The "optimized" output a consumer would store
+        const best = json.results?.[0];
+        const optimized = best ? {
+          formatted: best.formatted_address,
+          lat: best.geometry?.location?.lat,
+          lng: best.geometry?.location?.lng,
+          placeId: best.place_id,
+          locationType: best.geometry?.location_type,
+          mapsUrl: `https://www.google.com/maps/place/?q=place_id:${best.place_id}`,
+          source: { addressTh: addrTh, addressEn: addrEn },
+        } : { error: "no geocode result", status: json.status, addressTh: addrTh };
+        $("#geocode-out").textContent = JSON.stringify(optimized, null, 2);
+      } catch (e) {
+        $("#geocode-out").textContent = `// geocode failed: ${e}\n// query tried: ${addrTh}`;
+      }
+    }
+
+    $("#caps-btn").addEventListener("click", probeCaps);
+    $("#search-btn").addEventListener("click", search);
+    $("#detail-btn").addEventListener("click", fetchDetail);
+    $("#full-btn").addEventListener("click", fetchFull);
+    $("#geocode-btn").addEventListener("click", geocode);
+    $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+
+    // Auto-probe on page load
+    probeCaps();
+  </script>
+</body>
+</html>

@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>namue</title>
+  <style>
+    /*
+     * Editorial-minimalism. No boxed panels, no chrome — content floats on
+     * warm cream with hairline dividers and a single brand-red accent.
+     * Every color is brand-tinted; no true black, no neutral grays.
+     */
+
+    @font-face {
+      font-family: "Momo Trust Display";
+      src: url("fonts/MomoTrustDisplay-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --brand-bg: #FAF7F2;
+      --brand-fg: #3A1424;          /* deep warm wine — replaces black */
+      --brand-muted: #8A6770;       /* dusty mauve */
+      --brand-subtle: #C9B6BA;      /* faded rose */
+      --brand-line: #EAD8DC;        /* hairline tint */
+      --brand-line-soft: #F2E6E9;   /* even softer hairline */
+      --brand-accent: #AF0D4E;      /* brand red */
+      --brand-accent-hover: #8C0A3E;
+      --brand-accent-soft: #FBE9EF; /* faint brand wash for hover/active */
+      --brand-warn-fg: #8B5A00;     /* warm caution for non-operating */
+      --brand-err-fg: #93251A;
+
+      /* Momo Trust Display reserved for display moments (wordmark, big
+         counter number, detail name). Body text — inputs, labels, list
+         rows, status — uses Inter/system, which reads lighter than
+         Momo at small sizes. */
+      --font-display: "Momo Trust Display", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--font-body);
+      width: 360px;
+      padding: 14px 18px 14px;
+      margin: 0;
+      color: var(--brand-fg);
+      background: var(--brand-bg);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* ── Top bar ────────────────────────────────────────────────────────
+     * 32 | 1fr | 32 grid mirrors the search row. Col 3 holds a "starter"
+     * language toggle visible at idle. After the first search the brand
+     * row hides — the filter-panel lang toggle takes over as the
+     * persistent escape hatch. */
+    .top {
+      display: grid;
+      grid-template-columns: 32px 1fr 32px;
+      column-gap: 6px;
+      align-items: center;
+      margin: 0 0 12px;
+    }
+    .flower {
+      width: 22px;
+      height: 22px;
+      background: url("assets/logo.png") center/contain no-repeat;
+      justify-self: center;
+    }
+    .brand-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .wordmark {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--brand-accent);
+      letter-spacing: 0.01em;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .tagline {
+      font-size: 11px;
+      color: var(--brand-muted);
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tagline.warn { color: #8B5A00; }
+    .tagline.err { color: #93251A; }
+    .tagline.ok { color: var(--brand-accent); }
+
+    /* .lang-btn moved into the filters panel as a standard .icon-btn. */
+
+    /* ── Connect (disconnected) ─────────────────────────────────────────── */
+    .connect-row { display: none; margin: 4px 0 12px; }
+    body:not(.connected) .connect-row { display: block; }
+    .connect-row button {
+      width: 100%;
+      background: var(--brand-accent);
+      color: white;
+      font-family: var(--font-body);
+      font-size: 13px;
+      padding: 9px 12px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+    }
+    .connect-row button:hover { background: var(--brand-accent-hover); }
+
+    /* ── Field rows ─────────────────────────────────────────────────────────
+     * All three input rows (search, province, active-only) share the same
+     * grid: a 32px slot for the kebab on the left, a flexible field column
+     * in the middle, a 32px slot for the lens on the right. Rows without
+     * icons leave the outer slots empty so the field column lines up
+     * vertically across all three. All fields share the same height. */
+    .field-row {
+      display: none;
+      grid-template-columns: 32px 1fr 32px;
+      column-gap: 6px;
+      align-items: center;
+      margin: 0 0 6px;
+    }
+    body.connected:not(.detail-mode) .field-row.search-field { display: grid; }
+    body.connected:not(.detail-mode) #filters.open .field-row { display: grid; }
+
+    .field {
+      width: 100%;
+      height: 32px;
+      border: none;
+      border-bottom: 1px solid var(--brand-line);
+      background: transparent;
+      padding: 0 4px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--brand-fg);
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+    .field:focus { outline: none; border-bottom-color: var(--brand-accent); }
+    /* Placeholders are brand-muted (not subtle) so they read as real
+       suggestions instead of faded ghost text. */
+    .field::placeholder { color: var(--brand-muted); }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 32px;
+      padding: 0 2px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--brand-fg);
+      user-select: none;
+    }
+    .checkbox-field input[type="checkbox"] {
+      accent-color: var(--brand-accent);
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--brand-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--brand-accent); background: var(--brand-accent-soft); }
+    .icon-btn.active { color: var(--brand-accent); background: var(--brand-accent-soft); }
+    .icon-btn.primary { color: white; background: var(--brand-accent); }
+    .icon-btn.primary:hover { background: var(--brand-accent-hover); }
+    .icon-btn svg { display: block; }
+
+    /* Search button has two faces: lens icon (idle / editing) and the
+       numeric count (after a search has run). Toggled via .has-count. */
+    .icon-btn .btn-count {
+      display: none;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+    .icon-btn.has-count .lens { display: none; }
+    .icon-btn.has-count .btn-count { display: inline-block; }
+
+    /* Filters container — just a wrapper; the inner .field-row grids do
+       the layout. No border, no padding (gone is the divider). */
+    #filters { display: none; }
+    body.connected:not(.detail-mode) #filters.open { display: block; }
+
+    /* When filters are open the kebab/chevron icon flips, and the pink
+       wash brackets BOTH outside columns of the expanded panel so the
+       chevron (top-left), the lang toggle (bottom-right), and the
+       in-between rows all read as one continuous unit. */
+    #filters-toggle.active .chev { transform: rotate(180deg); }
+    #filters-toggle .chev { transition: transform 0.18s ease-out; }
+
+    /* Left column: chevron at top of search row, then col 1 of each
+       filter row underneath. */
+    body.filters-open #search-row .icon-btn:first-child {
+      background: var(--brand-accent-soft);
+      color: var(--brand-accent);
+      border-radius: 4px 4px 0 0;
+    }
+    body.filters-open #filters .field-row > :first-child {
+      background: var(--brand-accent-soft);
+      align-self: stretch;
+      min-height: 32px;
+    }
+    body.filters-open #filters .field-row:last-child > :first-child {
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* Right column: col 3 of each filter row (empty span in row 1,
+       lang toggle in last row). The search button at top-right stays
+       brand-red and is excluded — pink picks up below it. */
+    body.filters-open #filters .field-row > :last-child {
+      background: var(--brand-accent-soft);
+      align-self: stretch;
+      min-height: 32px;
+    }
+    body.filters-open #filters .field-row:last-child > :last-child {
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* Collapse inter-row gaps so the pink column reads continuous. */
+    body.filters-open .field-row.search-field { margin-bottom: 0; }
+    body.filters-open #filters .field-row { margin-bottom: 0; }
+    body.filters-open #filters .field-row:last-child { margin-bottom: 6px; }
+
+    /* ── Result list ──────────────────────────────────────────────────────
+     * Row grid mirrors the top-bar / field-row: number (col 1, centered
+     * under the logo) | name+meta (col 2) | year (col 3, right-aligned
+     * under the lang/lens icons). Zebra stripes via :nth-child(even). */
+    .result { display: none; max-height: 380px; overflow: auto; margin-top: 4px; }
+    body.connected:not(.detail-mode) .result.has-content { display: block; }
+    .row {
+      display: grid;
+      grid-template-columns: 32px 1fr 32px;
+      column-gap: 6px;
+      padding: 8px 2px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .row:nth-child(even) { background: var(--brand-line-soft); }
+    .row:hover { background: var(--brand-accent-soft); }
+    .row:focus-visible { outline: none; background: var(--brand-accent-soft); }
+
+    /* row-num (col 1), tax-id line (top of col 2), and row-year (col 3)
+       all sit on the same baseline. Same mono face, same 11px, same
+       line-height, top-aligned to the row's start. */
+    .row-num,
+    .row-year {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--brand-muted);
+      text-align: center;
+      align-self: start;
+      line-height: 1.4;
+      user-select: none;
+    }
+    .row:hover .row-num,
+    .row:hover .row-year { color: var(--brand-accent); }
+
+    .row-body { min-width: 0; }
+    /* Inverted vertical order: meta line on top, company name below. */
+    .row-meta {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--brand-muted);
+      letter-spacing: 0;
+      line-height: 1.4;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .row-primary {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--brand-fg);
+      line-height: 1.3;
+      margin-top: 3px;
+      letter-spacing: 0.01em;
+    }
+    .row:hover .row-primary { color: var(--brand-accent); }
+
+    .row-id {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      color: var(--brand-muted);
+    }
+    .row-meta .sep { color: var(--brand-subtle); }
+    .row-province { color: var(--brand-muted); }
+
+    .row-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--brand-warn-fg, #8B5A00);
+      font-size: 10px;
+      letter-spacing: 0.02em;
+    }
+    .row-status-badge svg { width: 11px; height: 11px; display: block; }
+
+    /* Lazy-load spinner — shown while auto-fetching the next page. */
+    .lazy-spinner {
+      display: none;
+      text-align: center;
+      padding: 10px 0 4px;
+    }
+    body.lazy-loading .lazy-spinner { display: block; }
+    .lazy-spinner span {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--brand-line);
+      border-top-color: var(--brand-accent);
+      border-radius: 50%;
+      animation: lazy-spin 0.7s linear infinite;
+    }
+    @keyframes lazy-spin { to { transform: rotate(360deg); } }
+
+    /* ── Detail view ─────────────────────────────────────────────────
+     * 3 grid rows mirror a list row's anatomy:
+     *   ▲ prev  | tax-id · province | copy
+     *   index   | COMPANY NAME      | back to list
+     *   ▼ next  | year              | share
+     * Then the body sections (operating-since, address, objectives,
+     * directors) flow underneath. */
+    .detail { display: none; }
+    body.detail-mode .detail {
+      display: block;
+      transform-origin: top center;
+    }
+    /* Default open from the list — vertical zoom-in. */
+    body.detail-mode .detail.from-list {
+      animation: detail-zoom-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    /* Next record — slides up from below the viewport. */
+    body.detail-mode .detail.from-next {
+      animation: slide-from-bottom 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    /* Previous record — slides down from above. */
+    body.detail-mode .detail.from-prev {
+      animation: slide-from-top 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    /* Closing back to list — vertical zoom-out. */
+    body.detail-mode .detail.leaving {
+      animation: detail-zoom-out 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+    @keyframes detail-zoom-in {
+      from { opacity: 0; transform: scaleY(0.85); }
+      to   { opacity: 1; transform: scaleY(1); }
+    }
+    @keyframes detail-zoom-out {
+      from { opacity: 1; transform: scaleY(1); }
+      to   { opacity: 0; transform: scaleY(0.85); }
+    }
+    @keyframes slide-from-bottom {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slide-from-top {
+      from { opacity: 0; transform: translateY(-28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .dh-row {
+      display: grid;
+      grid-template-columns: 32px 1fr 32px;
+      column-gap: 6px;
+      align-items: center;
+      padding: 2px 0;
+    }
+    .dh-arrow {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--brand-fg);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .dh-arrow:hover:not(:disabled) {
+      color: var(--brand-accent);
+      background: var(--brand-accent-soft);
+    }
+    .dh-arrow:disabled { color: var(--brand-subtle); cursor: default; }
+    .dh-arrow svg { display: block; }
+
+    .dh-index {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--brand-muted);
+      text-align: center;
+      user-select: none;
+    }
+    /* Detail row-1 meta mirrors the list-row meta exactly — same font,
+       size, color, line-height, layout — so "tax-id · province" reads
+       identically across the two views. */
+    .dh-meta {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--brand-muted);
+      letter-spacing: 0;
+      line-height: 1.4;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .dh-meta .sep { color: var(--brand-subtle); }
+    .dh-meta .id { color: var(--brand-muted); }
+    .dh-name {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--brand-fg);
+      line-height: 1.3;
+      letter-spacing: 0.01em;
+    }
+    .dh-year {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--brand-muted);
+    }
+
+    /* Body sections under the 3-row header. */
+    #detail-body { margin-top: 14px; padding: 0 4px 0 38px; }
+    .ds-line {
+      font-size: 12px;
+      color: var(--brand-fg);
+      line-height: 1.5;
+      margin: 0 0 12px;
+    }
+    .ds-section { margin-bottom: 14px; }
+    .ds-section:last-child { margin-bottom: 0; }
+    .ds-section h4 {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--brand-muted);
+      margin: 0 0 4px;
+    }
+    .ds-section p {
+      margin: 0 0 4px;
+      font-size: 12px;
+      color: var(--brand-fg);
+      line-height: 1.4;
+    }
+    .ds-section a {
+      color: var(--brand-accent);
+      text-decoration: none;
+    }
+    .ds-section a:hover { text-decoration: underline; }
+    .ds-section ul { margin: 0; padding: 0; list-style: none; }
+    .ds-section li {
+      padding: 4px 0;
+      border-bottom: 1px solid var(--brand-line-soft);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .ds-section li:last-child { border-bottom: none; }
+    .ds-section .obj-code,
+    .ds-section .dir-role {
+      color: var(--brand-subtle);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      margin-right: 6px;
+    }
+
+    /* Quick toast when copy/share lands. */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      background: var(--brand-accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .toast.show { opacity: 1; }
+
+    .detail-name {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--brand-fg);
+      margin: 0 0 16px;
+      line-height: 1.25;
+    }
+
+    .detail-section { margin-top: 16px; }
+    .detail-section:first-child { margin-top: 0; }
+    .detail-section h4 {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--brand-muted);
+      margin: 0 0 5px;
+    }
+    .detail-section p {
+      margin: 0 0 4px;
+      font-size: 13px;
+      color: var(--brand-fg);
+      line-height: 1.5;
+    }
+    .detail-section ul { margin: 0; padding-left: 0; list-style: none; }
+    .detail-section li {
+      padding: 5px 0;
+      border-bottom: 1px solid var(--brand-line-soft);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .detail-section li:last-child { border-bottom: none; }
+    .detail-section .obj-code {
+      color: var(--brand-subtle);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      margin-right: 6px;
+    }
+
+    /* ── Brand row + footer row hide once a search has been run ──────────
+     * .results-mode is sticky for the popup session: it flips on at the
+     * first search submission and stays on so we don't redraw the brand
+     * after every Load More. */
+    body.results-mode #brand-row,
+    body.results-mode #footer-row { display: none; }
+    /* Brand and footer also hide while viewing a detail. */
+    body.detail-mode #brand-row,
+    body.detail-mode #footer-row { display: none; }
+
+    #brand-row { margin-top: 14px; margin-bottom: 4px; }
+    #footer-row {
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--brand-subtle);
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    #footer-row a { color: var(--brand-subtle); text-decoration: none; }
+    #footer-row a:hover { color: var(--brand-accent); }
+  </style>
+</head>
+<body>
+  <!-- Connect button — only when disconnected. Visually replaces the search row. -->
+  <div id="connect-row" class="connect-row">
+    <button id="connect"></button>
+  </div>
+
+  <!-- ── ROW 1: Search field (kebab | input | lens-or-count) ──────────── -->
+  <div id="search-row" class="field-row search-field">
+    <button id="filters-toggle" class="icon-btn" aria-label="">
+      <!-- Double chevron: points down when closed, flips to up when filters open. -->
+      <svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 8 12 14 18 8"/>
+        <polyline points="6 14 12 20 18 14"/>
+      </svg>
+    </button>
+    <input id="q" type="text" class="field" autofocus>
+    <button id="go" class="icon-btn primary" aria-label="">
+      <svg class="lens" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m20 20-3.5-3.5"/>
+      </svg>
+      <span class="btn-count" id="btn-count"></span>
+    </button>
+  </div>
+
+  <!-- Filters sit IMMEDIATELY below the search row so the chevron's pink
+       column extends unbroken through both. Brand + footer come after. -->
+  <div id="filters">
+    <div class="field-row">
+      <span></span>
+      <input id="province" list="province-options" type="text" class="field" autocomplete="off">
+      <span></span>
+    </div>
+    <datalist id="province-options"></datalist>
+
+    <div class="field-row">
+      <span></span>
+      <label class="checkbox-field" for="active-only">
+        <input id="active-only" type="checkbox" checked>
+        <span id="lbl-active-only"></span>
+      </label>
+      <!-- Col 3 of the LAST row holds the language toggle so the pink
+           "bracket" closes at the bottom-right of the expanded panel.
+           Icon: stylized "A" + Thai "ก" glyph — explicit EN/TH cue. -->
+      <button id="lang-toggle" class="icon-btn lang-toggle" aria-label="Switch language">
+        <svg viewBox="0 0 640 640" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path d="m566.17,252.32c-20.24-19.63-49.54-29.59-87.09-29.59-28.98,0-54.47,6.24-75.75,18.55-18.81,10.87-35.98,26.47-51.04,46.38-4.31,5.7-5.19,13.3-2.28,19.85l17.82,40.15c.67,1.51,1.01,3.11,1.01,4.76v144.94c0,10.95,9.02,19.86,20.1,19.86h14.97c11.08,0,20.1-8.91,20.1-19.86v-153.45c0-3.37-.88-6.71-2.54-9.66l-12.03-21.36c-2.6-4.62-1.8-10.41,1.96-14.09,7.75-7.58,16.23-13.46,25.21-17.48,12.15-5.44,26.45-8.2,42.48-8.2,20.89,0,36.66,5.26,46.89,15.63,10.29,10.44,15.5,27.27,15.5,50.01v158.6c0,10.95,9.02,19.86,20.1,19.86h14.97c11.08,0,20.1-8.91,20.1-19.86v-162.77c0-34.95-10.25-62.63-30.47-82.26Z"/>
+          <path d="m98.45,277.75l-33.74,70.35c-6.1,12.65.08,27.51,13.73,33.17,13.65,5.66,29.67,0,35.77-12.73l16.95-35.37h133.52l16.95,35.37c6.02,12.65,22.13,18.31,35.77,12.73,13.65-5.58,19.84-20.44,13.73-33.17l-108.51-226.37c-4.32-9.12-14.07-14.93-24.75-14.93s-20.43,5.82-24.75,14.93l-52.73,110.04-21.96,45.98Zm56.8,5.11l42.64-88.98,42.64,88.98h-85.28Z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Result list — lazy-loads on scroll (no manual Load more) ────── -->
+  <div id="result" class="result"></div>
+  <div id="lazy-spinner" class="lazy-spinner" aria-hidden="true"><span></span></div>
+
+  <!-- ── Detail view ───────────────────────────────────────────────────
+       Three-row header mirrors the list row layout (32 | 1fr | 32):
+       row 1: prev arrow | tax-id · province  | copy tax-id
+       row 2: index #    | COMPANY NAME       | back to list
+       row 3: next arrow | year                | share profile
+       Body underneath: operating-since sentence, address (Maps link),
+       objectives, directors. -->
+  <div id="detail" class="detail">
+    <div class="dh-row">
+      <button id="detail-prev" class="dh-arrow" type="button" aria-label="">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 15 12 8 19 15"/></svg>
+      </button>
+      <div id="detail-meta" class="dh-meta"></div>
+      <button id="detail-copy" class="icon-btn" type="button" aria-label="">
+        <!-- Double-overlapping-rectangle "copy" glyph. -->
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="11" height="11" rx="2"/>
+          <path d="M5 15V6a2 2 0 0 1 2-2h9"/>
+        </svg>
+      </button>
+    </div>
+    <div class="dh-row">
+      <span class="dh-index" id="detail-index"></span>
+      <div id="detail-name" class="dh-name"></div>
+      <button id="detail-back" class="icon-btn primary" type="button" aria-label="">
+        <svg viewBox="0 0 640 640" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <path d="M480,64c0-17.7-14.3-32-32-32H192c-17.7,0-32,14.3-32,32s14.3,32,32,32h256C465.7,96,480,81.7,480,64z M233.4,422.6l64,64c12.5,12.5,32.8,12.5,45.3,0l64-64c12.5-12.5,12.5-32.8,0-45.3s-32.8-12.5-45.3,0l-9.4,9.4V253.2l9.4,9.4c12.5,12.5,32.8,12.5,45.3,0s12.5-32.8,0-45.3l-64-64c-6-6-14.1-9.4-22.6-9.4s-16.6,3.4-22.6,9.4l-64,64c-12.5,12.5-12.5,32.8,0,45.3s32.8,12.5,45.3,0l9.4-9.4v133.5l-9.4-9.4c-12.5-12.5-32.8-12.5-45.3,0s-12.5,32.8,0,45.3H233.4z M448,608c17.7,0,32-14.3,32-32s-14.3-32-32-32H192c-17.7,0-32,14.3-32,32s14.3,32,32,32H448z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="dh-row">
+      <button id="detail-next" class="dh-arrow" type="button" aria-label="">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 12 16 19 9"/></svg>
+      </button>
+      <div id="detail-year" class="dh-year"></div>
+      <button id="detail-share" class="icon-btn" type="button" aria-label="">
+        <!-- Classic iOS share: box with up arrow. -->
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/>
+          <path d="M8 7l4-4 4 4"/>
+          <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>
+        </svg>
+      </button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+
+  <!-- Brand + footer rows at the bottom of the popup: visible only at idle
+       (no search run yet, not viewing a detail). -->
+  <header id="brand-row" class="top">
+    <span class="flower" aria-hidden="true"></span>
+    <span class="brand-line">
+      <span class="wordmark">namue</span>
+      <span id="tagline" class="tagline"></span>
+    </span>
+    <!-- "Starter" lang toggle — visible only at idle (before first
+         search). After results-mode hides this row, the filters-panel
+         toggle (same class, shared handler) keeps the affordance alive. -->
+    <button class="icon-btn lang-toggle" aria-label="Switch language">
+      <svg viewBox="0 0 640 640" width="20" height="20" fill="currentColor" aria-hidden="true">
+        <path d="m566.17,252.32c-20.24-19.63-49.54-29.59-87.09-29.59-28.98,0-54.47,6.24-75.75,18.55-18.81,10.87-35.98,26.47-51.04,46.38-4.31,5.7-5.19,13.3-2.28,19.85l17.82,40.15c.67,1.51,1.01,3.11,1.01,4.76v144.94c0,10.95,9.02,19.86,20.1,19.86h14.97c11.08,0,20.1-8.91,20.1-19.86v-153.45c0-3.37-.88-6.71-2.54-9.66l-12.03-21.36c-2.6-4.62-1.8-10.41,1.96-14.09,7.75-7.58,16.23-13.46,25.21-17.48,12.15-5.44,26.45-8.2,42.48-8.2,20.89,0,36.66,5.26,46.89,15.63,10.29,10.44,15.5,27.27,15.5,50.01v158.6c0,10.95,9.02,19.86,20.1,19.86h14.97c11.08,0,20.1-8.91,20.1-19.86v-162.77c0-34.95-10.25-62.63-30.47-82.26Z"/>
+        <path d="m98.45,277.75l-33.74,70.35c-6.1,12.65.08,27.51,13.73,33.17,13.65,5.66,29.67,0,35.77-12.73l16.95-35.37h133.52l16.95,35.37c6.02,12.65,22.13,18.31,35.77,12.73,13.65-5.58,19.84-20.44,13.73-33.17l-108.51-226.37c-4.32-9.12-14.07-14.93-24.75-14.93s-20.43,5.82-24.75,14.93l-52.73,110.04-21.96,45.98Zm56.8,5.11l42.64-88.98,42.64,88.98h-85.28Z"/>
+      </svg>
+    </button>
+  </header>
+  <div id="footer-row"><span id="footer-data"></span> <a href="https://namue.com" target="_blank">namue.com</a></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Namue — Thai/English Business Names",
+  "short_name": "Namue",
+  "version": "0.1.0",
+  "description": "Look up the official Thai or English form of a registered Thai company or director name via DBD DataWarehouse+.",
+  "homepage_url": "https://namue.com",
+  "host_permissions": [
+    "https://datawarehouse.dbd.go.th/*"
+  ],
+  "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "namue_dw_origin_rewrite",
+      "enabled": true,
+      "path": "rules/dw-origin.json"
+    }]
+  },
+  "background": {
+    "service_worker": "sw.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Namue"
+  },
+  "externally_connectable": {
+    "matches": [
+      "https://*.namue.com/*",
+      "https://*.lanna.ai/*",
+      "https://*.xyz.it/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
