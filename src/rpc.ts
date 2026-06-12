@@ -1,6 +1,6 @@
 import { ValidationError } from "./errors.ts";
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const CAPABILITIES = Object.freeze({
   protocolVersion: PROTOCOL_VERSION,
@@ -11,6 +11,7 @@ export const CAPABILITIES = Object.freeze({
     "company.full",
     "session.status",
     "session.ensure",
+    "opendata.ckan",
   ] as const),
 });
 
@@ -28,7 +29,8 @@ export type RpcRequest =
     }
   | { type: "translate"; scope: "director"; juristicId: string; typeCode: string }
   | { type: "company.detail"; juristicId: string; typeCode: string }
-  | { type: "company.full"; juristicId: string; typeCode: string };
+  | { type: "company.full"; juristicId: string; typeCode: string }
+  | { type: "opendata.ckan"; url: string };
 
 export type RpcResponse<T = unknown> =
   | { ok: true; data: T }
@@ -58,6 +60,8 @@ export function validateRequest(raw: unknown): RpcRequest {
       return { type: "session.status" };
     case "session.ensure":
       return { type: "session.ensure" };
+    case "opendata.ckan":
+      return { type: "opendata.ckan", url: asString(o["url"], "url") };
     case "company.detail":
       return {
         type: "company.detail",

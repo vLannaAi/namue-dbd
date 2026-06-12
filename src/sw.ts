@@ -10,6 +10,26 @@ async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "capabilities":
         return { ok: true, data: CAPABILITIES };
 
+      case "opendata.ckan": {
+        // Public open-data proxy: the portal sends no CORS headers, so
+        // pages can't fetch it directly. Strictly allowlisted — only
+        // the two read-only CKAN actions on DBD's own portal; no DW
+        // session, no cookies.
+        const url = new URL(req.url);
+        const allowed =
+          url.protocol === "https:" &&
+          url.hostname === "opendata.dbd.go.th" &&
+          /^\/api\/3\/action\/(package_show|datastore_search)$/.test(url.pathname);
+        if (!allowed) {
+          return { ok: false, error: { code: "NAMUE_VALIDATION", message: "URL not allowed for opendata.ckan" } };
+        }
+        const res = await fetch(url.toString(), { credentials: "omit" });
+        if (!res.ok) {
+          throw new ServerError(`CKAN returned HTTP ${res.status}`, { status: res.status });
+        }
+        return { ok: true, data: await res.json() };
+      }
+
       case "session.status": {
         // Non-side-effecting check: does the SW already have a usable session?
         // Never opens a tab. Use this from a popup that doesn't want to

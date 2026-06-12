@@ -135,3 +135,13 @@ test("CAPABILITIES advertises expected services", () => {
   assert.ok(CAPABILITIES.services.includes("session.status"));
   assert.equal(CAPABILITIES.protocolVersion, PROTOCOL_VERSION);
 });
+
+test("validateRequest accepts opendata.ckan with a url", () => {
+  const req = validateRequest({ type: "opendata.ckan", url: "https://opendata.dbd.go.th/api/3/action/package_show?id=dataset_11_01" });
+  assert.deepEqual(req, { type: "opendata.ckan", url: "https://opendata.dbd.go.th/api/3/action/package_show?id=dataset_11_01" });
+});
+
+test("capabilities advertises opendata.ckan at protocol v2", () => {
+  assert.equal(CAPABILITIES.protocolVersion, 2);
+  assert.ok(CAPABILITIES.services.includes("opendata.ckan"));
+});

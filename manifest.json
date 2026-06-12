@@ -6,7 +6,8 @@
   "description": "Look up the official Thai or English form of a registered Thai company or director name via DBD DataWarehouse+.",
   "homepage_url": "https://namue.com",
   "host_permissions": [
-    "https://datawarehouse.dbd.go.th/*"
+    "https://datawarehouse.dbd.go.th/*",
+    "https://opendata.dbd.go.th/*"
   ],
   "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
   "declarative_net_request": {
