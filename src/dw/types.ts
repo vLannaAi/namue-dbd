@@ -52,6 +52,15 @@ export interface DwProfileDetail {
   district: DwLocationPart | null;     // อำเภอ / amphoe
   subdistrict: DwLocationPart | null;  // ตำบล / tambon
   zipCode: string | null;
+  /** Contact details where the registry carries them. */
+  phone: string | null;
+  email: string | null;
+  /** Non-empty registry website entries (upstream webSite1..webSite4). */
+  websites: string[];
+  businessSizeCode: string | null;
+  businessTypeCode: string | null;
+  businessTypeDesc: string | null;
+  businessTypeDescE: string | null;
 }
 
 export interface DwObjective {

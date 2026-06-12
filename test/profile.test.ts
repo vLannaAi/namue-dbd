@@ -26,6 +26,9 @@ test("parseProfileDetail extracts core fields with ISO dates", () => {
   assert.equal(p.nameEn, "LANNA AI CO., LTD.");
   assert.equal(p.status.descTh, "ยังดำเนินกิจการอยู่");
   assert.equal(p.status.descEn, "Operating");
+  // Contact/business fields absent in the fixture → null/empty, never undefined.
+  assert.equal(p.phone, null);
+  assert.deepEqual(p.websites, []);
   assert.equal(p.registrationDate, "2024-03-15");
   assert.equal(p.dissolutionDate, null);
   assert.equal(p.province!.nameTh, "กรุงเทพมหานคร");
@@ -75,4 +78,26 @@ test("parseDescriptions extracts objectives with code fallback chain", () => {
 test("parseDescriptions returns [] for non-array input", () => {
   assert.deepEqual(parseDescriptions(null), []);
   assert.deepEqual(parseDescriptions({ x: 1 }), []);
+});
+
+test("parseProfileDetail carries contact and business-type fields when present", () => {
+  const p = parseProfileDetail({
+    jpNo: "0105563012345",
+    jpTypeCode: "5",
+    jpName: "บริษัท ทดสอบ จำกัด",
+    phoneNo: "053-123456",
+    email: "info@example.co.th",
+    webSite1: "https://example.co.th",
+    webSite2: "",
+    webSite3: "https://shop.example.co.th",
+    businessSizeCode: "S",
+    businessTypeCode: "G",
+    businessType: { businessTypeCode: "G", businessTypeDesc: "การขายส่งและการขายปลีก", businessTypeDescE: "Wholesale and retail trade" },
+  });
+  assert.equal(p.phone, "053-123456");
+  assert.equal(p.email, "info@example.co.th");
+  assert.deepEqual(p.websites, ["https://example.co.th", "https://shop.example.co.th"]);
+  assert.equal(p.businessSizeCode, "S");
+  assert.equal(p.businessTypeDesc, "การขายส่งและการขายปลีก");
+  assert.equal(p.businessTypeDescE, "Wholesale and retail trade");
 });

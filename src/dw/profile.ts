@@ -60,6 +60,9 @@ export function parseProfileDetail(raw: unknown): DwProfileDetail {
   const statusObj = (o["jpStatus"] !== null && typeof o["jpStatus"] === "object" && !Array.isArray(o["jpStatus"]))
     ? o["jpStatus"] as Obj
     : ({} as Obj);
+  const businessTypeObj = (o["businessType"] !== null && typeof o["businessType"] === "object" && !Array.isArray(o["businessType"]))
+    ? o["businessType"] as Obj
+    : ({} as Obj);
   return {
     juristicId: str(o, "jpNo"),
     typeCode: str(o, "jpTypeCode"),
@@ -78,6 +81,15 @@ export function parseProfileDetail(raw: unknown): DwProfileDetail {
     district: parseLocationPart(o["locationAmpur"], "ampurCode", "ampurDesc", "ampurDescE"),
     subdistrict: parseLocationPart(o["locationTumbon"], "tumbonCode", "tumbonDesc", "tumbonDescE"),
     zipCode: strOrNull(o, "zipCode"),
+    phone: strOrNull(o, "phoneNo"),
+    email: strOrNull(o, "email"),
+    websites: ["webSite1", "webSite2", "webSite3", "webSite4"]
+      .map((k) => strOrNull(o, k))
+      .filter((w): w is string => w !== null && w !== ""),
+    businessSizeCode: strOrNull(o, "businessSizeCode"),
+    businessTypeCode: strOrNull(o, "businessTypeCode"),
+    businessTypeDesc: strOrNull(businessTypeObj, "businessTypeDesc"),
+    businessTypeDescE: strOrNull(businessTypeObj, "businessTypeDescE"),
   };
 }
 
