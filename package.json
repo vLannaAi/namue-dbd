@@ -1,6 +1,6 @@
 {
   "name": "namue-dbd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Chrome MV3 extension that resolves Thai or English forms of registered Thai companies via DBD DataWarehouse+.",
   "type": "module",
