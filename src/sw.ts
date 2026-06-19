@@ -1,8 +1,9 @@
 import { validateRequest, CAPABILITIES, type RpcRequest, type RpcResponse } from "./rpc.ts";
 import { getSession, clearSession } from "./session.ts";
 import { bootstrapSession } from "./bootstrap.ts";
-import { NamueDwClient } from "./dw/client.ts";
-import { NamueError, SessionError, ServerError } from "./errors.ts";
+import { getDbd } from "./dw/dbd.ts";
+import type { SearchOptions } from "siam-portals";
+import { NamueError, ServerError } from "./errors.ts";
 
 async function handle(req: RpcRequest): Promise<RpcResponse> {
   try {
@@ -56,73 +57,54 @@ async function handle(req: RpcRequest): Promise<RpcResponse> {
       }
 
       case "company.detail": {
-        const session = await getSession();
-        const client = new NamueDwClient({ session });
-        const [profile, objectives, committees] = await Promise.all([
-          client.getProfileDetail(req.typeCode, req.juristicId),
-          client.getDescriptions(req.typeCode, req.juristicId),
-          client.getCommittees(req.typeCode, req.juristicId),
-        ]);
-        return { ok: true, data: { profile, objectives, committees } };
+        // Fail fast on a dead session before dispatching; getDbd's getters
+        // resolve the current token lazily per request thereafter.
+        await getSession();
+        const data = await getDbd().companyDetail(req.juristicId, req.typeCode);
+        return { ok: true, data };
       }
 
       case "company.full": {
-        // Everything DBD exposes for this juristic ID, in one shot. Nine
-        // parallel encrypted GETs. Promise.allSettled so a dead endpoint
-        // doesn't take the whole response down — failed slots come back
-        // as { error: "..." } and the consumer decides what to do.
-        const session = await getSession();
-        const client = new NamueDwClient({ session });
-        const t = req.typeCode, id = req.juristicId;
-        const tasks = {
-          profile:               client.getProfileDetail(t, id),
-          objectives:            client.getDescriptions(t, id),
-          committees:            client.getCommittees(t, id),
-          committeeSigns:        client.getCommitteeSigns(t, id),
-          partners:              client.getPartners(t, id),
-          nameHistory:           client.getNameHistory(t, id),
-          capitalHistory:        client.getCapitalHistory(t, id),
-          nations:               client.getNations(t, id),
-          mergers:               client.getMergers(t, id),
-          liquidators:           client.getLiquidators(t, id),
-          balanceSheets:         client.getBalanceSheets(t, id),
-          financialSubmissions:  client.getFinancialSubmissions(t, id),
-        };
-        const keys = Object.keys(tasks) as (keyof typeof tasks)[];
-        const settled = await Promise.allSettled(keys.map((k) => tasks[k]));
-        const data: Record<string, unknown> = {};
-        for (let i = 0; i < keys.length; i++) {
-          const k = keys[i]!;
-          const s = settled[i]!;
-          data[k] = s.status === "fulfilled" ? s.value : { error: String(s.reason?.message ?? s.reason) };
-        }
+        // Everything DBD exposes for this juristic ID, in one shot. Twelve
+        // parallel encrypted GETs via Promise.allSettled inside siam — a dead
+        // endpoint doesn't take the whole response down; failed slots come
+        // back as { error: "..." } and the consumer decides what to do.
+        await getSession();
+        const data = await getDbd().companyFull(req.juristicId, req.typeCode);
         return { ok: true, data };
       }
 
       case "translate": {
-        const session = await getSession();
-        const client = new NamueDwClient({ session });
+        await getSession();
+        const dbd = getDbd();
         if (req.scope === "company") {
           // exactOptionalPropertyTypes — only assign defined fields.
-          const opts: import("./dw/types.ts").SearchOptions = {};
+          const opts: SearchOptions = {};
           if (req.page !== undefined) opts.page = req.page;
           if (req.pvCodeList !== undefined) opts.pvCodeList = req.pvCodeList;
           if (req.jpStatusList !== undefined) opts.jpStatusList = req.jpStatusList;
-          const page = await client.searchByName(req.query, opts);
+          const page = await dbd.search(req.query, opts);
           return { ok: true, data: page };
         }
-        const committees = await client.getCommittees(req.typeCode, req.juristicId);
+        const committees = await dbd.committees(req.juristicId, req.typeCode);
         return { ok: true, data: { committees } };
       }
     }
   } catch (err) {
-    // On 401/403 the session is dead — clear it so the next call rebootstraps.
-    if (err instanceof SessionError) await clearSession();
-    if (err instanceof ServerError && (err.status === 401 || err.status === 403)) {
+    // The data path now throws siam errors (SIAM_*); the kept auth/session
+    // path still throws namue errors (NAMUE_*). Key recovery off normalized
+    // code + status rather than `instanceof`, which doesn't cross the
+    // namue/siam class boundary. Surface NAMUE_* codes either way so the RPC
+    // error-code contract is preserved.
+    const e = err as { code?: unknown; status?: unknown; message?: unknown };
+    const code = (typeof e.code === "string" ? e.code : "NAMUE_UNKNOWN").replace(/^SIAM_/, "NAMUE_");
+    const status = typeof e.status === "number" ? e.status : null;
+    // On a dead session (explicit session error, or 401/403) clear it so the
+    // next call rebootstraps.
+    if (code === "NAMUE_SESSION" || (code === "NAMUE_SERVER" && (status === 401 || status === 403))) {
       await clearSession();
     }
-    const code = err instanceof NamueError ? err.code : "NAMUE_UNKNOWN";
-    return { ok: false, error: { code, message: (err as Error).message } };
+    return { ok: false, error: { code, message: String(e.message ?? err) } };
   }
 }
 
