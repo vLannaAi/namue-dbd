@@ -19,6 +19,9 @@
     "test": "node --import tsx --test test/*.test.ts",
     "icons": "node scripts/gen-icons.mjs"
   },
+  "dependencies": {
+    "siam-portals": "file:./vendor/siam-portals"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.270",
     "@types/node": "^22.0.0",

@@ -1,0 +1,3 @@
+[submodule "vendor/siam-portals"]
+	path = vendor/siam-portals
+	url = https://github.com/vLannaAi/siam-portals.git

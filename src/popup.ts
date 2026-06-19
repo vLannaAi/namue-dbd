@@ -1,5 +1,11 @@
 import type { RpcRequest, RpcResponse } from "./rpc.ts";
-import type { DwSearchPage, DwSearchResult, DwProfileDetail, DwObjective, DwCommittee } from "./dw/types.ts";
+import type {
+  SearchPage as DwSearchPage,
+  SearchResult as DwSearchResult,
+  CompanyProfile as DwProfileDetail,
+  Objective as DwObjective,
+  Committee as DwCommittee,
+} from "siam-portals";
 import { PROVINCES } from "./provinces.ts";
 import {
   STRINGS, STORAGE_KEY as LANG_STORAGE_KEY,
