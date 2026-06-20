@@ -1,8 +1,22 @@
 # Cut namue's DBD data layer over to siam-portals
 
 **Date:** 2026-06-19
-**Status:** Approved design — pending implementation plan
-**Repos:** `namue-dbd` (consumer, this repo) + `siam-portals` (provider, `/Users/vicio/_github/siam-portals`)
+**Status:** Completed 2026-06-20 — shipped in commit `623c068` (data layer cut to
+siam-portals), submodule pinned at `vendor/siam-portals` `v0.1.0-pre.1.6-35-g1c7203e`
+(package version `0.1.0-pre.3`). Released in namue `0.3.0` (alongside the
+detail-view shareholders/nationality feature).
+
+The post-cutover real-Chrome smoke surfaced two cutover regressions vs the deleted
+`src/dw/` client, both fixed upstream in siam (with tests):
+1. **Missing `Content-Type: application/json`** on the search POST → DBD `415`.
+   siam's `decode()` now mirrors the old client's request headers.
+2. **Double gzip-decompression** — browser `fetch` auto-decompresses but leaves
+   `content-encoding: gzip` visible, so siam re-gunzipped the decoded body and the
+   read threw `TypeError: Failed to fetch` on every `200`. siam's `PreAuthTransport`
+   now strips `content-encoding`. (Bug #2 was masked by #1: `decode()` throws on
+   non-2xx before reaching the gunzip line.)
+**Repos:** `namue-dbd` (consumer, this repo) + `siam-portals` (provider, now vendored
+as a git submodule at `vendor/siam-portals`)
 
 ## Context
 

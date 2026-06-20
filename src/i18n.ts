@@ -62,6 +62,9 @@ interface Strings {
   sectionDates: string;
   sectionAddress: string;
   sectionObjectives: (n: number) => string;
+  sectionNationality: (n: number) => string;
+  sectionShareholders: (n: number) => string;
+  noResults: string;
   registered: string;
   dissolved: string;
   unknown: string;
@@ -103,6 +106,9 @@ export const STRINGS: Record<Lang, Strings> = {
     sectionDates: "Dates",
     sectionAddress: "Address",
     sectionObjectives: (n) => `Objectives (${n})`,
+    sectionNationality: (n) => `Shareholder nationality (${n})`,
+    sectionShareholders: (n) => `Shareholders (${n})`,
+    noResults: "no companies found",
     registered: "Registered",
     dissolved: "Dissolved",
     unknown: "(unknown)",
@@ -155,6 +161,9 @@ export const STRINGS: Record<Lang, Strings> = {
     sectionDates: "วันที่",
     sectionAddress: "ที่อยู่",
     sectionObjectives: (n) => `วัตถุประสงค์ (${n})`,
+    sectionNationality: (n) => `สัญชาติผู้ถือหุ้น (${n})`,
+    sectionShareholders: (n) => `ผู้ถือหุ้น (${n})`,
+    noResults: "ไม่พบบริษัท",
     registered: "จดทะเบียน",
     dissolved: "เลิกกิจการ",
     unknown: "(ไม่ทราบ)",

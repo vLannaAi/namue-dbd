@@ -5,6 +5,10 @@ import type {
   CompanyProfile as DwProfileDetail,
   Objective as DwObjective,
   Committee as DwCommittee,
+  Partner as DwPartner,
+  Nation as DwNation,
+  CompanyFull as DwCompanyFull,
+  SlotError,
 } from "siam-portals";
 import { PROVINCES } from "./provinces.ts";
 import {
@@ -95,7 +99,24 @@ let state: SearchState | null = null;
 // Full list of result objects, accumulated across Load More. Used for prev/next.
 let currentResults: DwSearchResult[] = [];
 let currentDetailIndex = -1;
-let lastDetail: { profile: DwProfileDetail; objectives: DwObjective[]; committees: DwCommittee[] } | null = null;
+let lastDetail: {
+  profile: DwProfileDetail;
+  objectives: DwObjective[];
+  committees: DwCommittee[];
+  partners: DwPartner[];
+  nations: DwNation[];
+} | null = null;
+
+// company.full slots are `T | SlotError`; fall back to a default on error/absent.
+function unwrapSlot<T>(slot: T | SlotError | undefined, fallback: T): T {
+  if (slot && typeof slot === "object" && "error" in slot) return fallback;
+  return (slot ?? fallback) as T;
+}
+
+// Monotonic token guarding detail fetches: company.full is slow, so a later
+// open (or a new search) must invalidate an earlier in-flight request whose
+// response could otherwise land late and overwrite the panel with stale data.
+let detailToken = 0;
 
 // ── Body class helpers ──────────────────────────────────────────────────────
 function setBodyClass(cls: string, on: boolean): void {
@@ -359,9 +380,11 @@ function renderDetailPanel(
   profile: DwProfileDetail,
   objectives: DwObjective[],
   committees: DwCommittee[],
+  partners: DwPartner[],
+  nations: DwNation[],
   entryDirection: DetailEntry = "list",
 ): void {
-  lastDetail = { profile, objectives, committees };
+  lastDetail = { profile, objectives, committees, partners, nations };
   const s = t();
 
   // Reset + set the animation class so the keyframe restarts on every
@@ -501,6 +524,46 @@ function renderDetailPanel(
     body.append(sec);
   }
 
+  // Shareholder nationality breakdown (company.full `nations` slot).
+  if (nations.length > 0) {
+    const sec = document.createElement("div");
+    sec.className = "ds-section";
+    const h = document.createElement("h4");
+    h.textContent = s.sectionNationality(nations.length);
+    sec.append(h);
+    const ul = document.createElement("ul");
+    for (const n of nations) {
+      const li = document.createElement("li");
+      const name = (lang === "th" ? n.nameTh : n.nameEn) ?? n.nameEn ?? n.nameTh ?? n.nationCode;
+      li.textContent = n.proportionPercent != null ? `${name} · ${n.proportionPercent}%` : name;
+      ul.append(li);
+    }
+    sec.append(ul);
+    body.append(sec);
+  }
+
+  // Individual shareholders / partners (company.full `partners` slot).
+  if (partners.length > 0) {
+    const sec = document.createElement("div");
+    sec.className = "ds-section";
+    const h = document.createElement("h4");
+    h.textContent = s.sectionShareholders(partners.length);
+    sec.append(h);
+    const ul = document.createElement("ul");
+    for (const p of partners) {
+      const li = document.createElement("li");
+      const enName = [p.firstNameE, p.lastNameE].filter(Boolean).join(" ").trim();
+      const name = lang === "th" ? p.fullName : (enName || p.fullName);
+      const parts = [name];
+      if (p.ntCode) parts.push(p.ntCode);
+      if (p.proportionPercent != null) parts.push(`${p.proportionPercent}%`);
+      li.textContent = parts.join(" · ");
+      ul.append(li);
+    }
+    sec.append(ul);
+    body.append(sec);
+  }
+
   setBodyClass("detail-mode", true);
   if (state) setCountInButton(state.totalItems);
   showTagline();
@@ -520,16 +583,34 @@ async function openDetailByIndex(index: number, direction: DetailEntry = "list")
   if (index < 0 || index >= currentResults.length) return;
   const hit = currentResults[index]!;
   currentDetailIndex = index;
+  const token = ++detailToken;
+  setBodyClass("searching", true);
   showStatus(t().loadingDetailShort + "…", "warn");
-  const r = await send<{ profile: DwProfileDetail; objectives: DwObjective[]; committees: DwCommittee[] }>({
-    type: "company.detail", typeCode: hit.typeCode, juristicId: hit.juristicId,
+  const r = await send<DwCompanyFull>({
+    type: "company.full", typeCode: hit.typeCode, juristicId: hit.juristicId,
   });
+  // A newer open (or a new search) superseded this request — drop the stale
+  // response so it can't overwrite the panel. The newer call owns the spinner.
+  if (token !== detailToken) return;
+  setBodyClass("searching", false);
   if (!r.ok) {
     showStatus(t().errorPrefix(r.error.message), "err");
     if (r.error.code === "NAMUE_SERVER" || r.error.code === "NAMUE_SESSION") setConnected(false);
     return;
   }
-  renderDetailPanel(r.data.profile, r.data.objectives, r.data.committees ?? [], direction);
+  const profile = r.data.profile;
+  if (profile && typeof profile === "object" && "error" in profile) {
+    showStatus(t().errorPrefix((profile as SlotError).error), "err");
+    return;
+  }
+  renderDetailPanel(
+    profile as DwProfileDetail,
+    unwrapSlot(r.data.objectives, []),
+    unwrapSlot(r.data.committees, []),
+    unwrapSlot(r.data.partners, []),
+    unwrapSlot(r.data.nations, []),
+    direction,
+  );
 }
 
 function closeDetail(): void {
@@ -589,12 +670,16 @@ async function runFirstPage(): Promise<void> {
   const activeOnly = ($("#active-only") as HTMLInputElement).checked;
   state = { query: q, pvCode, activeOnly, nextPage: 1, totalItems: 0, totalPages: 0 };
   clearResults();
+  detailToken++;                       // invalidate any in-flight detail open
+  setBodyClass("detail-mode", false);  // a new search returns to the list view
   // Sticky: once the user starts searching, the brand row and footer
   // make way for results and stay hidden for the rest of the session.
   setBodyClass("results-mode", true);
+  setBodyClass("searching", true);
   showStatus(t().searchingShort + "…", "warn");
 
   const r = await send<DwSearchPage>(buildSearchRequest(state));
+  setBodyClass("searching", false);
   if (!r.ok) {
     showStatus(t().errorPrefix(r.error.message), "err");
     if (r.error.code === "NAMUE_SERVER" || r.error.code === "NAMUE_SESSION") setConnected(false);
@@ -603,6 +688,14 @@ async function runFirstPage(): Promise<void> {
   state.totalItems = r.data.meta.totalItems;
   state.totalPages = r.data.meta.totalPages;
   state.nextPage = r.data.meta.currentPage + 1;
+  if (state.totalItems === 0) {
+    const msg = document.createElement("div");
+    msg.className = "no-results";
+    msg.textContent = t().noResults;
+    ($("#result") as HTMLDivElement).append(msg);
+    setCountInButton(0); showTagline();
+    return;
+  }
   renderRows(r.data, false);
   setCountInButton(state.totalItems); showTagline();
 }
@@ -648,7 +741,13 @@ async function toggleLang(): Promise<void> {
   }
   if (savedDetail) {
     currentDetailIndex = savedIndex;
-    renderDetailPanel(savedDetail.profile, savedDetail.objectives, savedDetail.committees);
+    renderDetailPanel(
+      savedDetail.profile,
+      savedDetail.objectives,
+      savedDetail.committees,
+      savedDetail.partners,
+      savedDetail.nations,
+    );
   }
 }
 
