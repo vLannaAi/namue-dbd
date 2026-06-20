@@ -340,6 +340,27 @@
     }
     @keyframes lazy-spin { to { transform: rotate(360deg); } }
 
+    /* Initial-search spinner — centered while the first page loads. */
+    .search-spinner { display: none; text-align: center; padding: 28px 0; }
+    body.searching .search-spinner { display: block; }
+    .search-spinner span {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--brand-line);
+      border-top-color: var(--brand-accent);
+      border-radius: 50%;
+      animation: lazy-spin 0.7s linear infinite;
+    }
+
+    /* Empty-result message. */
+    .no-results {
+      padding: 24px 12px;
+      text-align: center;
+      color: var(--brand-muted);
+      font-size: 13px;
+    }
+
     /* ── Detail view ─────────────────────────────────────────────────
      * 3 grid rows mirror a list row's anatomy:
      *   ▲ prev  | tax-id · province | copy
@@ -633,6 +654,7 @@
 
   <!-- ── Result list — lazy-loads on scroll (no manual Load more) ────── -->
   <div id="result" class="result"></div>
+  <div id="search-spinner" class="search-spinner" aria-hidden="true"><span></span></div>
   <div id="lazy-spinner" class="lazy-spinner" aria-hidden="true"><span></span></div>
 
   <!-- ── Detail view ───────────────────────────────────────────────────
